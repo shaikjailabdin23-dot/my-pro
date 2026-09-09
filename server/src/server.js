@@ -11,12 +11,26 @@ const port = process.env.PORT || 4000
 const secret = process.env.JWT_SECRET || 'dev-only-cybershield-secret'
 
 app.use(helmet())
-app.use(cors({ origin: process.env.CLIENT_ORIGIN || 'http://localhost:5173' }))
+app.use(cors({
+  origin(origin, callback) {
+    if (isAllowedOrigin(origin)) return callback(null, true)
+    callback(new Error(`Origin ${origin} not allowed by CORS`))
+  },
+  credentials: true
+}))
 app.use(express.json({ limit: '2mb' }))
 app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 250, standardHeaders: true }))
 app.use(morgan('tiny'))
 
 const now = () => new Date().toISOString()
+const allowedOrigins = (process.env.CLIENT_ORIGIN || '')
+  .split(',')
+  .map(origin => origin.trim())
+  .filter(Boolean)
+const isAllowedOrigin = origin => {
+  if (!origin) return true
+  return allowedOrigins.includes(origin) || /^https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0):\d+$/.test(origin)
+}
 const users = [{ id: 'usr-001', name: 'Jordan Lee', email: 'analyst@cybershield.ai', role: 'Security Analyst', password: 'demo' }]
 const alerts = [
   { id: 'ALT-1048', title: 'Possible brute-force activity', description: '50 failed login attempts detected within 2 minutes against an admin route.', severity: 'Critical', source: 'Auth Gateway', timestamp: '2026-09-05T09:42:00Z', status: 'Investigating', analyst: 'Jordan Lee', action: 'Review authentication logs and enforce temporary rate limiting.' },
